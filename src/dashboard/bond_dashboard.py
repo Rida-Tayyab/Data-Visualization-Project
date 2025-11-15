@@ -108,18 +108,35 @@ GLOBAL_YEAR_MAX = int(df_full['releaseYear'].max())
 
 
 # --- PAGE NAVIGATION ---
-st.sidebar.header("007 Navigation")
+st.sidebar.markdown("## 007 Navigation")
 page_mode = st.sidebar.radio(
-    "Select View Mode:",
-    ('Interactive Dashboard', '007 Story Mode', 'Across the 007 Verse')
+    "",
+    ('Bond Overview', 'Individual Charts', 'Story Mode', 'Actor Universe')
 )
 
+# If Individual Charts is selected, show chart selector
+if page_mode == 'Individual Charts':
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("Select Chart")
+    chart_selection = st.sidebar.selectbox(
+        "Choose a chart to view:",
+        [
+            "Actor Performance Ranking",
+            "Rating Trend Over Time",
+            "Bond vs Other Thriller Films",
+            "Runtime vs Rating Analysis",
+            "Genre Evolution by Decade",
+            "Genre Popularity Trend",
+            "Rating Distribution by Actor",
+            "Production Volume by Decade",
+            "Performance Heatmap",
+            "Audience Engagement Distribution",
+            "Complete Film Timeline"
+        ]
+    )
 
 st.sidebar.markdown("---")
 
-# ==============================================================================
-# === PAGE 1: INTERACTIVE DASHBOARD (Existing Logic) =============================
-# ==============================================================================
 
 def render_dashboard(df_full, EON_BOND_ACTORS):
     st.title("The 007 Data Dossier: Interactive Dashboard")
@@ -195,25 +212,50 @@ def render_dashboard(df_full, EON_BOND_ACTORS):
         st.error("Please select at least one actor and ensure your filter criteria match available data.")
 
 
-    # --- KEY METRICS (Tableau-style KPI cards) ---
-    col1, col2, col3, col4, col5 = st.columns(5)
+    # --- KEY METRICS (Modern styled cards) ---
+    st.markdown("### Key Metrics")
+    col1, col2, col3, col4 = st.columns(4)
 
     total_films = len(df_filtered)
     avg_rating = df_filtered['averageRating'].mean() if total_films > 0 else 0
     avg_runtime = df_filtered['runtimeMinutes'].mean() if total_films > 0 else 0
-    total_votes = df_filtered['numVotes'].sum() if total_films > 0 else 0
-    highest_voted_film = df_filtered.sort_values(by='numVotes', ascending=False).iloc[0] if total_films > 0 else {'primaryTitle': 'N/A', 'numVotes': 0}
+    best_film = df_filtered.loc[df_filtered['averageRating'].idxmax()] if total_films > 0 else {'primaryTitle': 'N/A', 'averageRating': 0}
 
     with col1:
-        st.metric("Total Films", f"{total_films}")
+        st.markdown(f"""
+        <div class='metric-card'>
+            <h4 style='color: #FFD700; margin: 0;'>Total Bond Films</h4>
+            <h2 style='color: white; margin: 10px 0;'>{total_films}</h2>
+            <p style='color: #888; font-size: 0.9em;'>Films analyzed</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
     with col2:
-        st.metric("Average Rating", f"{avg_rating:.2f}/10")
+        st.markdown(f"""
+        <div class='metric-card'>
+            <h4 style='color: #FFD700; margin: 0;'>Average Rating</h4>
+            <h2 style='color: white; margin: 10px 0;'>{avg_rating:.1f}/10</h2>
+            <p style='color: #888; font-size: 0.9em;'>IMDb score</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
     with col3:
-        st.metric("Average Runtime", f"{avg_runtime:.0f} min")
+        st.markdown(f"""
+        <div class='metric-card'>
+            <h4 style='color: #FFD700; margin: 0;'>Avg Runtime</h4>
+            <h2 style='color: white; margin: 10px 0;'>{avg_runtime:.0f} min</h2>
+            <p style='color: #888; font-size: 0.9em;'>Film length</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
     with col4:
-        st.metric("Total Votes", f"{total_votes:,.0f}")
-    with col5:
-        st.metric("Most Popular", f"{highest_voted_film['primaryTitle'][:15]}...")
+        st.markdown(f"""
+        <div class='metric-card'>
+            <h4 style='color: #FFD700; margin: 0;'>Highest Rated</h4>
+            <h2 style='color: white; margin: 10px 0; font-size: 1.3em;'>{best_film['primaryTitle'][:12]}...</h2>
+            <p style='color: #888; font-size: 0.9em;'>{best_film['averageRating']:.1f}/10</p>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -881,12 +923,245 @@ def render_story_mode(df_full, EON_BOND_ACTORS):
 
 
 # ==============================================================================
+# === INDIVIDUAL CHARTS PAGE ===================================================
+# ==============================================================================
+
+def render_individual_chart(df_full, EON_BOND_ACTORS, chart_name):
+    st.title(f"{chart_name}")
+    st.markdown("---")
+    
+    # Add the same filters as dashboard
+    st.sidebar.header("Filters")
+    data_focus = st.sidebar.radio(
+        "Data Focus:",
+        ('James Bond Core Films', 'General Actor Search'),
+        index=0
+    )
+    
+    if data_focus == 'James Bond Core Films':
+        df_current = df_full[df_full['is_bond_core']].copy()
+        actor_list_options = sorted(list(set(EON_BOND_ACTORS).intersection(df_current['leadActor'].unique())))
+        default_actors = EON_BOND_ACTORS
+    else:
+        df_current = df_full.copy()
+        top_actors = df_current.groupby('leadActor').filter(lambda x: len(x) >= 5 and x['numVotes'].sum() >= 1000)
+        actor_list_options = sorted(top_actors['leadActor'].unique().tolist())
+        default_actors = EON_BOND_ACTORS
+    
+    st.sidebar.markdown("---")
+    selected_actors_dict = {}
+    for actor in actor_list_options[:10]:  # Limit to 10 for individual view
+        is_selected = st.sidebar.checkbox(actor, value=(actor in default_actors))
+        selected_actors_dict[actor] = is_selected
+    
+    selected_actors = [actor for actor, selected in selected_actors_dict.items() if selected]
+    
+    year_min = int(df_current['releaseYear'].min()) if not df_current.empty else GLOBAL_YEAR_MIN
+    year_max = int(df_current['releaseYear'].max()) if not df_current.empty else GLOBAL_YEAR_MAX
+    
+    if year_min < year_max:
+        selected_years = st.sidebar.slider(
+            'Release Year Range:',
+            min_value=year_min,
+            max_value=year_max,
+            value=(year_min, year_max)
+        )
+    else:
+        selected_years = (year_min, year_max)
+    
+    # Apply filters
+    if selected_actors and not df_current.empty:
+        df_filtered = df_current[
+            (df_current['leadActor'].isin(selected_actors)) &
+            (df_current['releaseYear'] >= selected_years[0]) &
+            (df_current['releaseYear'] <= selected_years[1])
+        ].copy()
+    else:
+        df_filtered = pd.DataFrame(columns=df_current.columns)
+        st.error("Please select at least one actor")
+        return
+    
+    # Render the selected chart
+    if chart_name == "Actor Performance Ranking":
+        actor_ratings = df_filtered.groupby('leadActor').agg(
+            averageRating=('averageRating', 'mean'),
+            totalFilms=('primaryTitle', 'count')
+        ).reset_index()
+        
+        chart = alt.Chart(actor_ratings).mark_bar().encode(
+            y=alt.Y('leadActor:N', sort='-x', title="Lead Actor"),
+            x=alt.X('averageRating:Q', title="Average IMDb Rating", scale=alt.Scale(domain=[0, 10])),
+            color=alt.Color('averageRating:Q', scale=alt.Scale(range=[ACCENT_ORANGE, ACCENT_BLUE]), legend=None),
+            tooltip=[
+                alt.Tooltip('leadActor', title="Actor"),
+                alt.Tooltip('averageRating', title="Avg. Rating", format=".2f"),
+                alt.Tooltip('totalFilms', title="Film Count")
+            ]
+        ).properties(height=500)
+        st.altair_chart(chart, use_container_width=True)
+    
+    elif chart_name == "Rating Trend Over Time":
+        actor_selection = alt.selection_point(fields=['leadActor'], bind='legend')
+        
+        line_chart = alt.Chart(df_filtered).mark_point(filled=True, size=80).encode(
+            x=alt.X('releaseYear:O', title="Release Year"),
+            y=alt.Y('averageRating:Q', title="IMDb Rating", scale=alt.Scale(domain=[5, 10])),
+            color=alt.Color('leadActor:N', title="Actor"),
+            opacity=alt.condition(actor_selection, alt.value(0.9), alt.value(0.2)),
+            tooltip=['primaryTitle', 'releaseYear', alt.Tooltip('averageRating', format=".2f"), 'leadActor']
+        ).add_params(actor_selection).properties(height=500)
+        
+        trend_line = alt.Chart(df_filtered).transform_regression('releaseYear', 'averageRating').mark_line(color=ACCENT_RED, size=3).encode()
+        st.altair_chart(line_chart + trend_line, use_container_width=True)
+    
+    elif chart_name == "Bond vs Other Thriller Films":
+        selected_bond_film = st.selectbox(
+            "Choose a James Bond film:",
+            df_full[df_full['is_bond_core']].sort_values('releaseYear', ascending=False)['primaryTitle'].unique().tolist()
+        )
+        
+        df_comparison = df_full[df_full['Thriller'] == 1].copy()
+        df_comparison['film_type'] = df_comparison['primaryTitle'].apply(
+            lambda x: selected_bond_film if x == selected_bond_film else 'Other Thriller Films'
+        )
+        
+        avg_rating = df_comparison['averageRating'].mean()
+        
+        scatter = alt.Chart(df_comparison).mark_circle(size=100, opacity=0.8).encode(
+            x=alt.X('numVotes:Q', title="Number of Votes", scale=alt.Scale(type='log')),
+            y=alt.Y('averageRating:Q', title="IMDb Rating", scale=alt.Scale(domain=[4, 10])),
+            color=alt.Color('film_type:N', 
+                scale=alt.Scale(domain=[selected_bond_film, 'Other Thriller Films'], range=['#E45756', '#4A90E2']),
+                legend=alt.Legend(title="Film Type")
+            ),
+            tooltip=['primaryTitle', 'leadActor', alt.Tooltip('averageRating', format=".2f"), alt.Tooltip('numVotes', format=","), 'releaseYear']
+        ).properties(height=500)
+        
+        avg_line = alt.Chart(pd.DataFrame({'avg': [avg_rating]})).mark_rule(
+            color=ACCENT_GOLD, strokeDash=[3, 3], size=2
+        ).encode(y='avg:Q')
+        
+        st.altair_chart(scatter + avg_line, use_container_width=True)
+    
+    elif chart_name == "Runtime vs Rating Analysis":
+        scatter_chart = alt.Chart(df_filtered).mark_circle().encode(
+            x=alt.X('runtimeMinutes:Q', title="Runtime (Minutes)"),
+            y=alt.Y('averageRating:Q', title="IMDb Rating", scale=alt.Scale(domain=[5, 10])),
+            size=alt.Size('numVotes:Q', title="Popularity", scale=alt.Scale(range=[50, 1000])),
+            color=alt.Color('leadActor:N', title="Actor"),
+            tooltip=['primaryTitle', 'leadActor', alt.Tooltip('runtimeMinutes', title="Runtime (mins)"), 
+                    alt.Tooltip('averageRating', title="Rating", format=".2f"), alt.Tooltip('numVotes', title="Votes", format=",")]
+        ).properties(height=500).interactive()
+        st.altair_chart(scatter_chart, use_container_width=True)
+    
+    elif chart_name == "Genre Evolution by Decade":
+        genre_cols = ['Action', 'Adventure', 'Thriller', 'Romance', 'Sci-Fi', 'Comedy', 'Drama']
+        df_genres = df_filtered.groupby('decade')[genre_cols].sum().reset_index()
+        df_genres_melted = df_genres.melt('decade', value_vars=genre_cols, var_name='Genre', value_name='Count')
+        df_genres_melted = df_genres_melted[df_genres_melted['Count'] > 0]
+        
+        chart = alt.Chart(df_genres_melted).mark_bar().encode(
+            x=alt.X('decade:O', title="Decade", axis=alt.Axis(labelAngle=0)),
+            y=alt.Y('Count:Q', title="Genre Count"),
+            color=alt.Color('Genre:N', title="Genre"),
+            order=alt.Order('decade:O'),
+            tooltip=['decade', 'Genre', 'Count']
+        ).properties(height=500).interactive()
+        st.altair_chart(chart, use_container_width=True)
+    
+    elif chart_name == "Genre Popularity Trend":
+        genre_cols = ['Action', 'Adventure', 'Thriller', 'Romance', 'Sci-Fi', 'Comedy', 'Drama']
+        df_genres = df_filtered.groupby('decade')[genre_cols].sum().reset_index()
+        df_genres_melted = df_genres.melt('decade', value_vars=genre_cols, var_name='Genre', value_name='Count')
+        df_genres_melted = df_genres_melted[df_genres_melted['Count'] > 0]
+        
+        area_chart = alt.Chart(df_genres_melted).mark_area(opacity=0.7, interpolate='monotone').encode(
+            x=alt.X('decade:O', title="Decade", axis=alt.Axis(labelAngle=0)),
+            y=alt.Y('Count:Q', title="Number of Films", stack='zero'),
+            color=alt.Color('Genre:N', title="Genre"),
+            tooltip=[alt.Tooltip('decade:O', title='Decade'), alt.Tooltip('Genre:N', title='Genre'), alt.Tooltip('Count:Q', title='Films')]
+        ).properties(height=500)
+        st.altair_chart(area_chart, use_container_width=True)
+    
+    elif chart_name == "Rating Distribution by Actor":
+        strip_chart = alt.Chart(df_filtered).mark_circle(size=80, opacity=0.7).encode(
+            x=alt.X('averageRating:Q', title="IMDb Rating", scale=alt.Scale(domain=[5, 10])),
+            y=alt.Y('leadActor:N', title="Lead Actor"),
+            color=alt.Color('leadActor:N', legend=None),
+            tooltip=['primaryTitle', 'leadActor', alt.Tooltip('averageRating', title="Rating", format=".2f")]
+        ).properties(height=500).interactive()
+        
+        mean_line = alt.Chart(df_filtered).mark_rule(color=ACCENT_GOLD, size=2).encode(
+            x='mean(averageRating):Q', y='leadActor:N'
+        )
+        st.altair_chart(strip_chart + mean_line, use_container_width=True)
+    
+    elif chart_name == "Production Volume by Decade":
+        decade_data = df_filtered.groupby('decade').size().reset_index(name='count')
+        
+        chart = alt.Chart(decade_data).mark_bar().encode(
+            x=alt.X('decade:O', title="Decade", axis=alt.Axis(labelAngle=0)),
+            y=alt.Y('count:Q', title="Number of Films"),
+            color=alt.Color('count:Q', scale=alt.Scale(range=[ACCENT_ORANGE, ACCENT_BLUE]), legend=None),
+            tooltip=[alt.Tooltip('decade:O', title='Decade'), alt.Tooltip('count:Q', title='Films')]
+        ).properties(height=500)
+        st.altair_chart(chart, use_container_width=True)
+    
+    elif chart_name == "Performance Heatmap":
+        heatmap_data = df_filtered.groupby(['leadActor', 'decade']).agg(
+            avg_rating=('averageRating', 'mean'),
+            film_count=('primaryTitle', 'count')
+        ).reset_index()
+        heatmap_data = heatmap_data[heatmap_data['film_count'] > 0]
+        
+        chart = alt.Chart(heatmap_data).mark_rect().encode(
+            x=alt.X('decade:O', title="Decade"),
+            y=alt.Y('leadActor:N', title="Actor"),
+            color=alt.Color('avg_rating:Q', scale=alt.Scale(scheme='blues', domain=[5, 9]), title="Avg Rating"),
+            tooltip=[alt.Tooltip('leadActor:N', title='Actor'), alt.Tooltip('decade:O', title='Decade'),
+                    alt.Tooltip('avg_rating:Q', title='Avg Rating', format='.2f'), alt.Tooltip('film_count:Q', title='Films')]
+        ).properties(height=500)
+        st.altair_chart(chart, use_container_width=True)
+    
+    elif chart_name == "Audience Engagement Distribution":
+        box_plot = alt.Chart(df_filtered).mark_boxplot(
+            size=50, color=ACCENT_BLUE, opacity=0.7,
+            median={'color': ACCENT_GOLD, 'size': 3},
+            outliers={'color': ACCENT_RED, 'size': 30, 'opacity': 0.6}
+        ).encode(
+            x=alt.X('leadActor:N', title="Actor", axis=alt.Axis(labelAngle=0, labelFontSize=11)),
+            y=alt.Y('numVotes:Q', title="Number of Votes (Log Scale)", scale=alt.Scale(type='log'), axis=alt.Axis(tickCount=5)),
+            tooltip=['leadActor:N', alt.Tooltip('numVotes:Q', format=',')]
+        ).properties(height=500)
+        st.altair_chart(box_plot, use_container_width=True)
+    
+    elif chart_name == "Complete Film Timeline":
+        df_timeline = df_filtered.copy()
+        df_timeline['rating_band'] = pd.cut(
+            df_timeline['averageRating'], bins=[0, 6, 7, 8, 10], labels=['Below 6', '6-7', '7-8', '8+']
+        )
+        
+        chart = alt.Chart(df_timeline).mark_circle(size=120).encode(
+            x=alt.X('releaseYear:O', title="Release Year"),
+            y=alt.Y('leadActor:N', title="Actor"),
+            color=alt.Color('rating_band:N', 
+                scale=alt.Scale(domain=['Below 6', '6-7', '7-8', '8+'], range=[ACCENT_RED, ACCENT_ORANGE, ACCENT_GREEN, ACCENT_BLUE]),
+                title="Rating Band"
+            ),
+            size=alt.Size('numVotes:Q', scale=alt.Scale(range=[50, 600]), title="Popularity"),
+            tooltip=['primaryTitle', 'leadActor', 'releaseYear', alt.Tooltip('averageRating:Q', format='.2f'), alt.Tooltip('numVotes:Q', format=',')]
+        ).properties(height=500)
+        st.altair_chart(chart, use_container_width=True)
+
+# ==============================================================================
 # === MAIN APP LOGIC ===========================================================
 # ==============================================================================
 
-if page_mode == 'Interactive Dashboard':
+if page_mode == 'Bond Overview':
     render_dashboard(df_full, EON_BOND_ACTORS)
-elif page_mode == '007 Story Mode':
+elif page_mode == 'Individual Charts':
+    render_individual_chart(df_full, EON_BOND_ACTORS, chart_selection)
+elif page_mode == 'Story Mode':
     render_story_mode(df_full, EON_BOND_ACTORS)
 else:
     render_best_bond_section(df_full, EON_BOND_ACTORS)
