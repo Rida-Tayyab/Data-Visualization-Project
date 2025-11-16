@@ -323,40 +323,25 @@ def render_dashboard(df_full, EON_BOND_ACTORS):
         st.markdown("<h2 class='section-header'>Bond Film Comparison</h2>", unsafe_allow_html=True)
         
         st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-        st.markdown("#### Select a Bond Film to Compare Against Other Thriller Films")
+        st.markdown("#### James Bond Movies vs Other Thriller Films")
+        st.caption("All Bond films compared to thriller movies with trend lines")
         
-        # Get list of Bond films for dropdown
-        bond_films = df_full[df_full['is_bond_core']].sort_values('releaseYear', ascending=False)
-        bond_film_options = bond_films['primaryTitle'].unique().tolist()
-        
-        # Dropdown to select a Bond film
-        selected_bond_film = st.selectbox(
-            "Choose a James Bond film:",
-            bond_film_options,
-            index=0
-        )
-        
-        st.caption(f"**{selected_bond_film}** compared to other Thriller films")
-        
-        # Filter for Thriller films only
+        # Filter for Thriller films only (main genre of Bond films)
         df_comparison = df_full[df_full['Thriller'] == 1].copy()
         
-        # Create film type column
-        df_comparison['film_type'] = df_comparison['primaryTitle'].apply(
-            lambda x: selected_bond_film if x == selected_bond_film else 'Other Thriller Films'
+        # Create film type column: Bond vs Other
+        df_comparison['film_type'] = df_comparison['is_bond_core'].apply(
+            lambda x: 'James Bond Films' if x else 'Other Thriller Films'
         )
         
-        # Create scatter plot with selected film highlighted
-        comparison_scatter = alt.Chart(df_comparison).mark_circle(size=100, opacity=0.8).encode(
-            x=alt.X('numVotes:Q', title="Number of Votes", scale=alt.Scale(type='log')),
+        # Separate data for Bond and Other films
+        bond_films_data = df_comparison[df_comparison['film_type'] == 'James Bond Films']
+        other_films_data = df_comparison[df_comparison['film_type'] == 'Other Thriller Films']
+        
+        # Layer 1: Other thriller films (blue, small)
+        other_scatter = alt.Chart(other_films_data).mark_circle(size=60, opacity=0.4, color='#4A90E2').encode(
+            x=alt.X('numVotes:Q', title="Number of Votes", scale=alt.Scale(type='log', domain=[100, 10000000])),
             y=alt.Y('averageRating:Q', title="IMDb Rating", scale=alt.Scale(domain=[4, 10])),
-            color=alt.Color('film_type:N', 
-                scale=alt.Scale(
-                    domain=[selected_bond_film, 'Other Thriller Films'],
-                    range=['#E45756', '#4A90E2']  # Red for selected Bond film, Blue for others
-                ),
-                legend=alt.Legend(title="Film Type")
-            ),
             tooltip=[
                 'primaryTitle',
                 'leadActor',
@@ -364,75 +349,72 @@ def render_dashboard(df_full, EON_BOND_ACTORS):
                 alt.Tooltip('numVotes', title="Votes", format=","),
                 'releaseYear'
             ]
-        ).properties(
-            height=400, 
-            title=f"{selected_bond_film} Compared to Other Thriller Films"
+        )
+        
+        # Layer 2: Bond films (red/gold, larger)
+        bond_scatter = alt.Chart(bond_films_data).mark_circle(size=150, opacity=0.9, color=ACCENT_RED).encode(
+            x=alt.X('numVotes:Q'),
+            y=alt.Y('averageRating:Q'),
+            tooltip=[
+                'primaryTitle',
+                'leadActor',
+                alt.Tooltip('averageRating', title="Rating", format=".2f"),
+                alt.Tooltip('numVotes', title="Votes", format=","),
+                'releaseYear'
+            ]
+        )
+        
+        # Layer 3: Trend line for Other films (blue)
+        other_trend = alt.Chart(other_films_data).transform_regression(
+            'numVotes', 'averageRating', method='log'
+        ).mark_line(color='#4A90E2', size=3, strokeDash=[5, 5]).encode(
+            x=alt.X('numVotes:Q'),
+            y=alt.Y('averageRating:Q')
+        )
+        
+        # Layer 4: Trend line for Bond films (red/gold)
+        bond_trend = alt.Chart(bond_films_data).transform_regression(
+            'numVotes', 'averageRating', method='log'
+        ).mark_line(color=ACCENT_GOLD, size=4).encode(
+            x=alt.X('numVotes:Q'),
+            y=alt.Y('averageRating:Q')
+        )
+        
+        # Combine all layers
+        comparison_chart = (other_scatter + other_trend + bond_scatter + bond_trend).properties(
+            height=450,
+            title="James Bond Films vs Other Thriller Films (with Best-Fit Lines)"
         ).interactive()
         
-        # Add reference lines for the selected film
-        selected_film_data = df_comparison[df_comparison['primaryTitle'] == selected_bond_film]
+        # Add legend manually using text annotations
+        legend_data = pd.DataFrame({
+            'x': [1000, 1000],
+            'y': [9.5, 9.2],
+            'text': ['● James Bond Films (Gold Trend)', '● Other Thriller Films (Blue Trend)'],
+            'color': [ACCENT_RED, '#4A90E2']
+        })
         
-        # Calculate average rating of all action/thriller films
-        avg_rating = df_comparison['averageRating'].mean()
+        st.altair_chart(comparison_chart, use_container_width=True)
         
-        if not selected_film_data.empty:
-            selected_rating = selected_film_data.iloc[0]['averageRating']
-            selected_votes = selected_film_data.iloc[0]['numVotes']
-            
-            # Horizontal reference line for selected film
-            h_line = alt.Chart(pd.DataFrame({'y': [selected_rating]})).mark_rule(
-                color='#E45756', 
-                strokeDash=[5, 5],
-                size=1
-            ).encode(y='y:Q')
-            
-            # Vertical reference line for selected film
-            v_line = alt.Chart(pd.DataFrame({'x': [selected_votes]})).mark_rule(
-                color='#E45756', 
-                strokeDash=[5, 5],
-                size=1
-            ).encode(x='x:Q')
-            
-            # Average rating line (horizontal)
-            avg_line = alt.Chart(pd.DataFrame({'avg': [avg_rating]})).mark_rule(
-                color=ACCENT_GOLD, 
-                strokeDash=[3, 3],
-                size=2
-            ).encode(
-                y='avg:Q'
-            )
-            
-            # Add text annotation for average line
-            avg_text = alt.Chart(pd.DataFrame({
-                'x': [df_comparison['numVotes'].max() * 0.8],
-                'y': [avg_rating],
-                'text': [f'Avg Rating: {avg_rating:.2f}']
-            })).mark_text(
-                align='right',
-                baseline='bottom',
-                dx=-5,
-                dy=-5,
-                color=ACCENT_GOLD,
-                fontSize=12,
-                fontWeight='bold'
-            ).encode(
-                x='x:Q',
-                y='y:Q',
-                text='text:N'
-            )
-            
-            final_chart = comparison_scatter + h_line + v_line + avg_line + avg_text
-        else:
-            # Just show average line if selected film not found
-            avg_line = alt.Chart(pd.DataFrame({'avg': [avg_rating]})).mark_rule(
-                color=ACCENT_GOLD, 
-                strokeDash=[3, 3],
-                size=2
-            ).encode(y='avg:Q')
-            
-            final_chart = comparison_scatter + avg_line
+        # Add summary statistics
+        col1, col2 = st.columns(2)
+        with col1:
+            bond_avg = bond_films_data['averageRating'].mean()
+            bond_count = len(bond_films_data)
+            st.markdown(f"""
+            **James Bond Films:**
+            - Average Rating: {bond_avg:.2f}
+            - Total Films: {bond_count}
+            """)
+        with col2:
+            other_avg = other_films_data['averageRating'].mean()
+            other_count = len(other_films_data)
+            st.markdown(f"""
+            **Other Thriller Films:**
+            - Average Rating: {other_avg:.2f}
+            - Total Films: {other_count}
+            """)
         
-        st.altair_chart(final_chart, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<hr>", unsafe_allow_html=True)
@@ -1015,33 +997,72 @@ def render_individual_chart(df_full, EON_BOND_ACTORS, chart_name):
         st.altair_chart(line_chart + trend_line, use_container_width=True)
     
     elif chart_name == "Bond vs Other Thriller Films":
-        selected_bond_film = st.selectbox(
-            "Choose a James Bond film:",
-            df_full[df_full['is_bond_core']].sort_values('releaseYear', ascending=False)['primaryTitle'].unique().tolist()
-        )
+        st.markdown("#### James Bond Movies vs Other Thriller Films")
+        st.caption("All Bond films compared to thriller movies with trend lines")
         
+        # Filter for Thriller films only (main genre of Bond films)
         df_comparison = df_full[df_full['Thriller'] == 1].copy()
-        df_comparison['film_type'] = df_comparison['primaryTitle'].apply(
-            lambda x: selected_bond_film if x == selected_bond_film else 'Other Thriller Films'
+        
+        # Create film type column
+        df_comparison['film_type'] = df_comparison['is_bond_core'].apply(
+            lambda x: 'James Bond Films' if x else 'Other Thriller Films'
         )
         
-        avg_rating = df_comparison['averageRating'].mean()
+        # Separate data
+        bond_films_data = df_comparison[df_comparison['film_type'] == 'James Bond Films']
+        other_films_data = df_comparison[df_comparison['film_type'] == 'Other Thriller Films']
         
-        scatter = alt.Chart(df_comparison).mark_circle(size=100, opacity=0.8).encode(
-            x=alt.X('numVotes:Q', title="Number of Votes", scale=alt.Scale(type='log')),
+        # Other films scatter
+        other_scatter = alt.Chart(other_films_data).mark_circle(size=60, opacity=0.4, color='#4A90E2').encode(
+            x=alt.X('numVotes:Q', title="Number of Votes", scale=alt.Scale(type='log', domain=[100, 10000000])),
             y=alt.Y('averageRating:Q', title="IMDb Rating", scale=alt.Scale(domain=[4, 10])),
-            color=alt.Color('film_type:N', 
-                scale=alt.Scale(domain=[selected_bond_film, 'Other Thriller Films'], range=['#E45756', '#4A90E2']),
-                legend=alt.Legend(title="Film Type")
-            ),
-            tooltip=['primaryTitle', 'leadActor', alt.Tooltip('averageRating', format=".2f"), alt.Tooltip('numVotes', format=","), 'releaseYear']
-        ).properties(height=500)
+            tooltip=['primaryTitle', 'leadActor', alt.Tooltip('averageRating', format=".2f"), 
+                    alt.Tooltip('numVotes', format=","), 'releaseYear']
+        )
         
-        avg_line = alt.Chart(pd.DataFrame({'avg': [avg_rating]})).mark_rule(
-            color=ACCENT_GOLD, strokeDash=[3, 3], size=2
-        ).encode(y='avg:Q')
+        # Bond films scatter
+        bond_scatter = alt.Chart(bond_films_data).mark_circle(size=150, opacity=0.9, color=ACCENT_RED).encode(
+            x=alt.X('numVotes:Q'),
+            y=alt.Y('averageRating:Q'),
+            tooltip=['primaryTitle', 'leadActor', alt.Tooltip('averageRating', format=".2f"), 
+                    alt.Tooltip('numVotes', format=","), 'releaseYear']
+        )
         
-        st.altair_chart(scatter + avg_line, use_container_width=True)
+        # Trend lines
+        other_trend = alt.Chart(other_films_data).transform_regression(
+            'numVotes', 'averageRating', method='log'
+        ).mark_line(color='#4A90E2', size=3, strokeDash=[5, 5]).encode(
+            x=alt.X('numVotes:Q'), y=alt.Y('averageRating:Q')
+        )
+        
+        bond_trend = alt.Chart(bond_films_data).transform_regression(
+            'numVotes', 'averageRating', method='log'
+        ).mark_line(color=ACCENT_GOLD, size=4).encode(
+            x=alt.X('numVotes:Q'), y=alt.Y('averageRating:Q')
+        )
+        
+        # Combine
+        chart = (other_scatter + other_trend + bond_scatter + bond_trend).properties(
+            height=500, title="James Bond Films vs Other Thriller Films"
+        ).interactive()
+        
+        st.altair_chart(chart, use_container_width=True)
+        
+        # Statistics
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"""
+            **James Bond Films:**
+            - Avg Rating: {bond_films_data['averageRating'].mean():.2f}
+            - Total: {len(bond_films_data)}
+            """)
+        with col2:
+            st.markdown(f"""
+            **Other Thriller Films:**
+            - Avg Rating: {other_films_data['averageRating'].mean():.2f}
+            - Total: {len(other_films_data)}
+            """)
+
     
     elif chart_name == "Runtime vs Rating Analysis":
         scatter_chart = alt.Chart(df_filtered).mark_circle().encode(
