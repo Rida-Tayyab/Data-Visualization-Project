@@ -11,6 +11,53 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Add custom CSS for metric cards and styling
+st.markdown("""
+<style>
+    .metric-card {
+        background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+        padding: 20px;
+        border-radius: 10px;
+        border: 1px solid #444;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        text-align: center;
+        transition: transform 0.2s;
+    }
+    .metric-card:hover {
+        transform: translateY(-5px);
+        border-color: #FFD700;
+    }
+    .chart-container {
+        background-color: #1a1a1a;
+        padding: 20px;
+        border-radius: 10px;
+        margin: 20px 0;
+        border: 1px solid #333;
+    }
+    .section-header {
+        color: #FFD700;
+        font-size: 1.8em;
+        font-weight: bold;
+        margin-top: 30px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #FFD700;
+        padding-bottom: 10px;
+    }
+    .subtitle {
+        color: #aaa;
+        font-size: 1.2em;
+        margin-bottom: 20px;
+    }
+    .footer {
+        text-align: center;
+        color: #666;
+        font-size: 0.9em;
+        margin-top: 40px;
+        padding: 20px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # Thematic Colors (Dark Theme)
 BACKGROUND_COLOR = '#0e1117'      # Dark Streamlit background
 TEXT_COLOR = 'white'              # White text
@@ -80,18 +127,30 @@ def load_and_preprocess_data(file_path):
     # 1. Initial Cleaning: Drop rows with missing leadActor, as this is the core of our analysis
     df.dropna(subset=['leadActor'], inplace=True)
     
-    # 2. Convert types for cleaner analysis
+    # 2. Clean numeric columns - remove NaN, inf, and invalid values
+    numeric_cols = ['averageRating', 'numVotes', 'runtimeMinutes']
+    for col in numeric_cols:
+        if col in df.columns:
+            # Replace inf/-inf with NaN
+            df[col] = df[col].replace([np.inf, -np.inf], np.nan)
+            # Drop rows with NaN in critical numeric columns
+            df = df[df[col].notna()].copy()
+            # Ensure positive values for numVotes and runtimeMinutes
+            if col in ['numVotes', 'runtimeMinutes']:
+                df = df[df[col] > 0].copy()
+    
+    # 3. Convert types for cleaner analysis
     df['releaseYear'] = df['releaseYear'].astype(int)
     df['decade'] = (df['releaseYear'] // 10 * 10).astype(int)
     
-    # 3. Create the 'Core Bond' subset mask
+    # 4. Create the 'Core Bond' subset mask
     is_bond_actor = df['leadActor'].isin(EON_BOND_ACTORS)
     has_bond_title = df['primaryTitle'].str.contains('Bond|007', case=False, na=False) | \
                      df['originalTitle'].str.contains('Bond|007', case=False, na=False)
     
     df['is_bond_core'] = (is_bond_actor | has_bond_title)
     
-    # 4. Filter out any remaining garbage entries (e.g., too few votes to matter)
+    # 5. Filter out any remaining garbage entries (e.g., too few votes to matter)
     # Raising the vote threshold to 500 for more robust "General Actor Search"
     df = df[df['numVotes'] >= 500].copy() 
     
@@ -311,10 +370,12 @@ def render_dashboard(df_full, EON_BOND_ACTORS):
             actor_selection
         ).properties(height=300)
         
-        # Add a global trend line
-        trend_line = alt.Chart(df_filtered).transform_regression('releaseYear', 'averageRating').mark_line(color=ACCENT_RED, size=2).encode()
-        
-        st.altair_chart(line_chart + trend_line, use_container_width=True)
+        # Add a global trend line only if we have enough data points
+        if len(df_filtered) >= 3:
+            trend_line = alt.Chart(df_filtered).transform_regression('releaseYear', 'averageRating').mark_line(color=ACCENT_RED, size=2).encode()
+            st.altair_chart(line_chart + trend_line, use_container_width=True)
+        else:
+            st.altair_chart(line_chart, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<hr>", unsafe_allow_html=True)
@@ -338,8 +399,8 @@ def render_dashboard(df_full, EON_BOND_ACTORS):
         bond_films_data = df_comparison[df_comparison['film_type'] == 'James Bond Films']
         other_films_data = df_comparison[df_comparison['film_type'] == 'Other Thriller Films']
         
-        # Layer 1: Other thriller films (blue, small)
-        other_scatter = alt.Chart(other_films_data).mark_circle(size=60, opacity=0.4, color='#4A90E2').encode(
+        # Layer 1: Other thriller films (gray, small)
+        other_scatter = alt.Chart(other_films_data).mark_circle(size=60, opacity=0.4, color='#9CA3AF').encode(
             x=alt.X('numVotes:Q', title="Number of Votes", scale=alt.Scale(type='log', domain=[100, 10000000])),
             y=alt.Y('averageRating:Q', title="IMDb Rating", scale=alt.Scale(domain=[4, 10])),
             tooltip=[
@@ -364,24 +425,30 @@ def render_dashboard(df_full, EON_BOND_ACTORS):
             ]
         )
         
-        # Layer 3: Trend line for Other films (blue)
-        other_trend = alt.Chart(other_films_data).transform_regression(
-            'numVotes', 'averageRating', method='log'
-        ).mark_line(color='#4A90E2', size=3, strokeDash=[5, 5]).encode(
-            x=alt.X('numVotes:Q'),
-            y=alt.Y('averageRating:Q')
-        )
+        # Layer 3: Trend line for Other films (gray) - only if enough data
+        layers = [other_scatter, bond_scatter]
         
-        # Layer 4: Trend line for Bond films (red/gold)
-        bond_trend = alt.Chart(bond_films_data).transform_regression(
-            'numVotes', 'averageRating', method='log'
-        ).mark_line(color=ACCENT_GOLD, size=4).encode(
-            x=alt.X('numVotes:Q'),
-            y=alt.Y('averageRating:Q')
-        )
+        if len(other_films_data) >= 3:
+            other_trend = alt.Chart(other_films_data).transform_regression(
+                'numVotes', 'averageRating', method='log'
+            ).mark_line(color='#9CA3AF', size=3, strokeDash=[5, 5]).encode(
+                x=alt.X('numVotes:Q'),
+                y=alt.Y('averageRating:Q')
+            )
+            layers.insert(1, other_trend)
+        
+        # Layer 4: Trend line for Bond films (red/gold) - only if enough data
+        if len(bond_films_data) >= 3:
+            bond_trend = alt.Chart(bond_films_data).transform_regression(
+                'numVotes', 'averageRating', method='log'
+            ).mark_line(color=ACCENT_GOLD, size=4).encode(
+                x=alt.X('numVotes:Q'),
+                y=alt.Y('averageRating:Q')
+            )
+            layers.append(bond_trend)
         
         # Combine all layers
-        comparison_chart = (other_scatter + other_trend + bond_scatter + bond_trend).properties(
+        comparison_chart = alt.layer(*layers).properties(
             height=450,
             title="James Bond Films vs Other Thriller Films (with Best-Fit Lines)"
         ).interactive()
@@ -390,8 +457,8 @@ def render_dashboard(df_full, EON_BOND_ACTORS):
         legend_data = pd.DataFrame({
             'x': [1000, 1000],
             'y': [9.5, 9.2],
-            'text': ['● James Bond Films (Gold Trend)', '● Other Thriller Films (Blue Trend)'],
-            'color': [ACCENT_RED, '#4A90E2']
+            'text': ['● James Bond Films (Gold Trend)', '● Other Thriller Films (Gray Trend)'],
+            'color': [ACCENT_RED, '#9CA3AF']
         })
         
         st.altair_chart(comparison_chart, use_container_width=True)
@@ -993,8 +1060,12 @@ def render_individual_chart(df_full, EON_BOND_ACTORS, chart_name):
             tooltip=['primaryTitle', 'releaseYear', alt.Tooltip('averageRating', format=".2f"), 'leadActor']
         ).add_params(actor_selection).properties(height=500)
         
-        trend_line = alt.Chart(df_filtered).transform_regression('releaseYear', 'averageRating').mark_line(color=ACCENT_RED, size=3).encode()
-        st.altair_chart(line_chart + trend_line, use_container_width=True)
+        # Only add trend line if we have enough data points
+        if len(df_filtered) >= 3:
+            trend_line = alt.Chart(df_filtered).transform_regression('releaseYear', 'averageRating').mark_line(color=ACCENT_RED, size=3).encode()
+            st.altair_chart(line_chart + trend_line, use_container_width=True)
+        else:
+            st.altair_chart(line_chart, use_container_width=True)
     
     elif chart_name == "Bond vs Other Thriller Films":
         st.markdown("#### James Bond Movies vs Other Thriller Films")
@@ -1013,7 +1084,7 @@ def render_individual_chart(df_full, EON_BOND_ACTORS, chart_name):
         other_films_data = df_comparison[df_comparison['film_type'] == 'Other Thriller Films']
         
         # Other films scatter
-        other_scatter = alt.Chart(other_films_data).mark_circle(size=60, opacity=0.4, color='#4A90E2').encode(
+        other_scatter = alt.Chart(other_films_data).mark_circle(size=60, opacity=0.4, color='#9CA3AF').encode(
             x=alt.X('numVotes:Q', title="Number of Votes", scale=alt.Scale(type='log', domain=[100, 10000000])),
             y=alt.Y('averageRating:Q', title="IMDb Rating", scale=alt.Scale(domain=[4, 10])),
             tooltip=['primaryTitle', 'leadActor', alt.Tooltip('averageRating', format=".2f"), 
@@ -1028,21 +1099,27 @@ def render_individual_chart(df_full, EON_BOND_ACTORS, chart_name):
                     alt.Tooltip('numVotes', format=","), 'releaseYear']
         )
         
-        # Trend lines
-        other_trend = alt.Chart(other_films_data).transform_regression(
-            'numVotes', 'averageRating', method='log'
-        ).mark_line(color='#4A90E2', size=3, strokeDash=[5, 5]).encode(
-            x=alt.X('numVotes:Q'), y=alt.Y('averageRating:Q')
-        )
+        # Trend lines - only if enough data
+        chart_layers = [other_scatter, bond_scatter]
         
-        bond_trend = alt.Chart(bond_films_data).transform_regression(
-            'numVotes', 'averageRating', method='log'
-        ).mark_line(color=ACCENT_GOLD, size=4).encode(
-            x=alt.X('numVotes:Q'), y=alt.Y('averageRating:Q')
-        )
+        if len(other_films_data) >= 3:
+            other_trend = alt.Chart(other_films_data).transform_regression(
+                'numVotes', 'averageRating', method='log'
+            ).mark_line(color='#9CA3AF', size=3, strokeDash=[5, 5]).encode(
+                x=alt.X('numVotes:Q'), y=alt.Y('averageRating:Q')
+            )
+            chart_layers.insert(1, other_trend)
+        
+        if len(bond_films_data) >= 3:
+            bond_trend = alt.Chart(bond_films_data).transform_regression(
+                'numVotes', 'averageRating', method='log'
+            ).mark_line(color=ACCENT_GOLD, size=4).encode(
+                x=alt.X('numVotes:Q'), y=alt.Y('averageRating:Q')
+            )
+            chart_layers.append(bond_trend)
         
         # Combine
-        chart = (other_scatter + other_trend + bond_scatter + bond_trend).properties(
+        chart = alt.layer(*chart_layers).properties(
             height=500, title="James Bond Films vs Other Thriller Films"
         ).interactive()
         
