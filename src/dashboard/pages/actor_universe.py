@@ -28,7 +28,7 @@ def render_actor_universe(df_full, EON_BOND_ACTORS):
     initialize_page_styles()
     
     render_page_header(
-        "🌍 Across the 007 Verse",
+        "Across the 007 Verse",
         "Comparative Analysis of All Bond Actors"
     )
     
@@ -43,7 +43,7 @@ def render_actor_universe(df_full, EON_BOND_ACTORS):
     # ========================================================================
     # ACTOR SELECTION
     # ========================================================================
-    render_section_header("🎭", "Select Your Agent")
+    render_section_header("Select Your Agent")
     
     col1, col2, col3 = st.columns([2, 1, 2])
     with col2:
@@ -57,7 +57,7 @@ def render_actor_universe(df_full, EON_BOND_ACTORS):
     df_actor = df_full[df_full['leadActor'] == selected_actor].copy()
 
     if df_actor.empty:
-        st.warning(f"⚠️ No films found for {selected_actor}.")
+        st.warning(f"No films found for {selected_actor}.")
         return
 
     st.markdown("---")
@@ -94,7 +94,7 @@ def render_actor_universe(df_full, EON_BOND_ACTORS):
     # ========================================================================
     # CHART 1: GENRE DISTRIBUTION (DONUT)
     # ========================================================================
-    render_section_header("🎭", f"Genre Mastery: {selected_actor}")
+    render_section_header(f"Genre Mastery: {selected_actor}")
     
     genre_cols = ['Action', 'Adventure', 'Thriller', 'Romance', 'Comedy', 'Drama', 'Sci-Fi']
     df_genre = df_actor[genre_cols].sum().reset_index()
@@ -129,7 +129,7 @@ def render_actor_universe(df_full, EON_BOND_ACTORS):
     # ========================================================================
     # CHART 2: RATING EVOLUTION
     # ========================================================================
-    render_section_header("📈", f"Career Arc: {selected_actor}'s Evolution")
+    render_section_header(f"Career Arc: {selected_actor}'s Evolution")
     
     avg_actor_rating = df_actor['averageRating'].mean()
     
@@ -193,7 +193,7 @@ def render_actor_universe(df_full, EON_BOND_ACTORS):
     
     with col1:
         st.markdown(f"""
-        **🏆 Best Rated Film**
+        **Best Rated Film**
         
         **{best_film['primaryTitle']}** ({int(best_film['releaseYear'])})
         
@@ -202,7 +202,7 @@ def render_actor_universe(df_full, EON_BOND_ACTORS):
     
     with col2:
         st.markdown(f"""
-        **📉 Lowest Rated Film**
+        **Lowest Rated Film**
         
         **{worst_film['primaryTitle']}** ({int(worst_film['releaseYear'])})
         
@@ -217,7 +217,7 @@ def render_actor_universe(df_full, EON_BOND_ACTORS):
     st.markdown("""
     <div style="text-align: center; color: #666; margin-top: 40px; padding: 20px; border-top: 1px solid #333;">
         <small>
-        🌍 <strong>Actor Universe</strong> | Individual Actor Analysis | 007 Data Dossier<br>
+        <strong>Actor Universe</strong> | Individual Actor Analysis | 007 Data Dossier<br>
         <em>Data Source: IMDb | Analysis: November 2025</em>
         </small>
     </div>

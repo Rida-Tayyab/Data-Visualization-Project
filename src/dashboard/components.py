@@ -29,27 +29,8 @@ except ImportError:
     )
 
 
-# --- Streamlit Page Configuration ---
-st.set_page_config(
-    page_title="Bond Overview",
-    page_icon="🎬",
-    layout="wide",
-    initial_sidebar_state="expanded",
-    menu_items=None
-)
-
-# Add this CSS to remove top padding
-st.markdown("""
-    <style>
-        .appData {
-            margin-top: -80px;
-        }
-        [data-testid="stVerticalBlock"] {
-            padding-top: 0rem;
-        }
-    </style>
-""", unsafe_allow_html=True)
-# ----------------------------------
+# Note: Page configuration should be done in main bond_dashboard.py file
+# This file only contains reusable components
 
 
 def initialize_page_styles():
@@ -66,24 +47,23 @@ def render_page_header(title, subtitle=""):
         subtitle: Optional subtitle with more context
     """
     st.markdown(f"""
-    <div style="text-align: center; margin-bottom: 24px;">
-        <h1 style="font-size: 36px; color: white; margin: 0; padding: 0;">
+    <div style="text-align: center; margin-top: 0; margin-bottom: 20px; padding-top: 0;">
+        <h1 style="font-size: 48px; font-weight: bold; color: white; margin: 0; padding: 0; letter-spacing: 1px;">
             {title}
         </h1>
-        {f'<p style="font-size: 16px; color: #FFD700; margin: 8px 0; padding: 0;">{subtitle}</p>' if subtitle else ''}
+        {f'<p style="font-size: 16px; color: #FFD700; margin: 8px 0 0 0; padding: 0;">{subtitle}</p>' if subtitle else ''}
     </div>
     """, unsafe_allow_html=True)
     st.markdown("---")
 
 
-def render_section_header(emoji, title, description=""):
+def render_section_header(title, description=""):
     """
-    Render consistent section header with emoji, title, and optional description.
+    Render consistent section header with title and optional description.
     
     Args:
-        emoji: Emoji icon (e.g., "🎬")
-        title: Section title
-        description: Optional descriptive text
+        title: Section title (required)
+        description: Optional descriptive text (optional)
     """
     st.markdown(f"""
     <div style="margin-bottom: 16px;">
@@ -92,11 +72,8 @@ def render_section_header(emoji, title, description=""):
             font-weight: bold;
             color: white;
             margin: 0 0 8px 0;
-            display: flex;
-            align-items: center;
-            gap: 12px;
         ">
-            {emoji} {title}
+            {title}
         </h2>
         {f'<p style="font-size: 14px; color: #999; margin: 0; padding: 0;">{description}</p>' if description else ''}
     </div>
@@ -214,7 +191,7 @@ def render_chart_with_description(
     """, unsafe_allow_html=True)
     
     # Title and description
-    st.markdown(f"<div class='chart-title'>🎯 {title}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='chart-title'>{title}</div>", unsafe_allow_html=True)
     st.markdown(f"<div class='chart-description'>{description}</div>", unsafe_allow_html=True)
     
     # Chart itself
@@ -225,14 +202,14 @@ def render_chart_with_description(
     
     with col1:
         st.markdown(
-            f"<small>💡 <strong>Key Insight:</strong> {key_insight}</small>",
+            f"<small><strong>Key Insight:</strong> {key_insight}</small>",
             unsafe_allow_html=True
         )
     
     if col2 and interaction_tip:
         with col2:
             st.markdown(
-                f"<small>ℹ️ {interaction_tip}</small>",
+                f"<small>{interaction_tip}</small>",
                 unsafe_allow_html=True
             )
     
@@ -304,7 +281,7 @@ def render_key_metrics(df_filtered):
     </style>
     """, unsafe_allow_html=True)
     
-    render_section_header("📊", "Executive Metrics")
+    render_section_header("Executive Metrics")
     
     total_films = len(df_filtered)
     avg_rating = df_filtered['averageRating'].mean() if total_films > 0 else 0
@@ -346,7 +323,7 @@ def render_sidebar_filters(df_full):
     Render sidebar filters and return filtered data.
     Enhanced with better organization and icons.
     """
-    st.sidebar.markdown("### 🎯 Mission Parameters")
+    st.sidebar.markdown("### Mission Parameters")
 
     # 1. Data Focus Selection
     data_focus = st.sidebar.radio(
@@ -369,7 +346,7 @@ def render_sidebar_filters(df_full):
         default_actors = EON_BOND_ACTORS
 
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 🕵️ Actor Dossier")
+    st.sidebar.markdown("### Actor Dossier")
 
     # 2. Vertical Checkbox Filter
     selected_actors_dict = {}
@@ -380,7 +357,7 @@ def render_sidebar_filters(df_full):
     selected_actors = [actor for actor, selected in selected_actors_dict.items() if selected]
 
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 📅 Temporal Filter")
+    st.sidebar.markdown("### Temporal Filter")
 
     # 3. Year Range Slider
     year_min = int(df_current['releaseYear'].min()) if not df_current.empty else 1960
@@ -400,7 +377,7 @@ def render_sidebar_filters(df_full):
     st.sidebar.markdown("---")
     
     # Reset filters button
-    if st.sidebar.button("🔄 Reset All Filters", use_container_width=True):
+    if st.sidebar.button("Reset All Filters", use_container_width=True):
         st.rerun()
 
     # Apply ALL Filters

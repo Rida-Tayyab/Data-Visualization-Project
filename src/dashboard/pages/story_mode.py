@@ -18,7 +18,7 @@ def render_story_mode(df_full):
     initialize_page_styles()
     
     render_page_header(
-        "📖 The Evolution of Espionage",
+        "The Evolution of Espionage",
         "A data-driven narrative through the James Bond franchise"
     )
 
@@ -28,7 +28,6 @@ def render_story_mode(df_full):
     # CHAPTER 1: THE GOLDEN AGE OF CONNERY
     # ========================================================================
     render_section_header(
-        "🎬",
         "Chapter 1: The Original Blueprint (1960s)",
         "Where it all began: Connery and Lazenby set the standard"
     )
@@ -68,7 +67,6 @@ def render_story_mode(df_full):
     # CHAPTER 2: THE ACTION-COMEDY SHIFT
     # ========================================================================
     render_section_header(
-        "🎭",
         "Chapter 2: The Camp and the Polish (1970s - 2000s)",
         "Experiment, innovation, and the search for reinvention"
     )
@@ -115,7 +113,6 @@ def render_story_mode(df_full):
     # CHAPTER 3: THE CRAIG REBOOT
     # ========================================================================
     render_section_header(
-        "💪",
         "Chapter 3: The Gritty Modern Agent (Daniel Craig)",
         "The reboot that changed everything (2006-2021)"
     )
@@ -161,7 +158,6 @@ def render_story_mode(df_full):
     # CONCLUSION
     # ========================================================================
     render_section_header(
-        "🔮",
         "The Future of Bond",
         "What the data tells us about the franchise"
     )
@@ -184,7 +180,7 @@ def render_story_mode(df_full):
     st.markdown("""
     <div style="text-align: center; color: #666; margin-top: 40px; padding: 20px; border-top: 1px solid #333;">
         <small>
-        📖 <strong>Story Mode</strong> | Data-Driven Narrative | 007 Data Dossier<br>
+        <strong>Story Mode</strong> | Data-Driven Narrative | 007 Data Dossier<br>
         <em>Data Source: IMDb | Analysis: November 2025</em>
         </small>
     </div>

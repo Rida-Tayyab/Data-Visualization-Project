@@ -40,14 +40,14 @@ def render_dashboard(df_full, df_filtered):
     initialize_page_styles()
     
     if df_filtered is None or df_filtered.empty:
-        st.warning(" No data matches your filters. Please adjust your selection.")
+        st.warning("No data matches your filters. Please adjust your selection.")
         return
     
     # ========================================================================
     # SECTION 1: PAGE HEADER
     # ========================================================================
     render_page_header(
-        " Bond Overview",
+        "Bond Overview",
         "Comprehensive Analysis of James Bond Films & Actor Performance"
     )
     
@@ -60,7 +60,6 @@ def render_dashboard(df_full, df_filtered):
     # SECTION 3: ACTOR PERFORMANCE (2-COLUMN)
     # ========================================================================
     render_section_header(
-        "🎬",
         "Actor Performance Analysis",
         "Compare critical reception across all Bond actors"
     )
@@ -90,7 +89,6 @@ def render_dashboard(df_full, df_filtered):
     # SECTION 4: RATING TRENDS (FULL WIDTH)
     # ========================================================================
     render_section_header(
-        "📈",
         "Rating Trends Over Time",
         "Track how IMDb ratings have evolved across decades"
     )
@@ -109,8 +107,8 @@ def render_dashboard(df_full, df_filtered):
     # ========================================================================
     # SECTION 5: BOND VS COMPETITION (FULL WIDTH)
     # ========================================================================
+    # Compare Bond films with other thriller movies
     render_section_header(
-        "",
         "James Bond vs. The Competition",
         "How do Bond films compare to other thriller movies?"
     )
@@ -156,7 +154,6 @@ def render_dashboard(df_full, df_filtered):
     # SECTION 6: FILM CHARACTERISTICS (2-COLUMN)
     # ========================================================================
     render_section_header(
-        "⏱",
         "Film Characteristics & Popularity",
         "Explore runtime, production volume, and audience engagement"
     )
@@ -186,7 +183,6 @@ def render_dashboard(df_full, df_filtered):
     # SECTION 7: GENRE ANALYSIS (2-COLUMN)
     # ========================================================================
     render_section_header(
-        "",
         "Genre Evolution & Trends",
         "How have genres shifted across Bond film eras?"
     )
@@ -216,13 +212,12 @@ def render_dashboard(df_full, df_filtered):
     # SECTION 8: ADVANCED ANALYTICS (COLLAPSIBLE)
     # ========================================================================
     render_section_header(
-        "",
         "Advanced Analytics",
         "Explore detailed performance heatmaps and engagement metrics"
     )
     
     # Performance Heatmap
-    with st.expander(" Performance Heatmap - Actor Performance by Decade", expanded=False):
+    with st.expander("Performance Heatmap - Actor Performance by Decade", expanded=False):
         render_chart_with_description(
             title='Performance Heatmap',
             description='Heatmap showing average ratings for each actor in each decade they were active. '
@@ -233,7 +228,7 @@ def render_dashboard(df_full, df_filtered):
         )
     
     # Audience Engagement
-    with st.expander(" Audience Engagement Distribution", expanded=False):
+    with st.expander("Audience Engagement Distribution", expanded=False):
         render_chart_with_description(
             title='Audience Engagement Boxplot',
             description='Box plot showing the distribution of audience votes (popularity) for each actor. '
@@ -244,7 +239,7 @@ def render_dashboard(df_full, df_filtered):
         )
     
     # Complete Timeline
-    with st.expander(" Complete Film Timeline", expanded=False):
+    with st.expander("Complete Film Timeline", expanded=False):
         render_chart_with_description(
             title='Film Timeline Analysis',
             description='Comprehensive view of all films plotted by release year and actor. '

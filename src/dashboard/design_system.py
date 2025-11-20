@@ -30,7 +30,7 @@ SPACING_XXL = 48
 # ============================================================================
 # TYPOGRAPHY SIZES (Consistent heading hierarchy)
 # ============================================================================
-HEADING_SIZE_L = 32      # Main page title
+HEADING_SIZE_L = 48      # Main page title
 HEADING_SIZE_M = 24      # Section headers
 HEADING_SIZE_S = 18      # Subsection headers
 TEXT_SIZE_NORMAL = 14
@@ -193,20 +193,27 @@ def get_page_container_style():
     .page-container {
         max-width: 1400px;
         margin: 0 auto;
-        padding: 20px;
+        padding: 0px 20px;
     }
     .page-title {
-        font-size: 36px;
+        font-size: 48px;
         font-weight: bold;
         color: white;
-        margin-bottom: 8px;
+        margin: 0;
+        padding: 0;
         text-align: center;
     }
     .page-subtitle {
         font-size: 16px;
         color: #FFD700;
         text-align: center;
-        margin-bottom: 20px;
+        margin: 8px 0 20px 0;
+        padding: 0;
+    }
+    
+    /* Remove all top spacing */
+    .block-container {
+        padding-top: 0rem !important;
     }
     </style>
     """
@@ -250,8 +257,8 @@ RATING_BAND_COLORS = {
 # NAVIGATION ICONS & LABELS
 # ============================================================================
 NAV_ITEMS = {
-    'Bond Overview': '🎬',
-    'Individual Charts': '📊',
-    'Story Mode': '📖',
-    'Actor Universe': '🌍'
+    'Bond Overview': '',
+    'Individual Charts': '',
+    'Story Mode': '',
+    'Actor Universe': ''
 }
