@@ -12,7 +12,8 @@ from charts import (
     create_rating_trend_chart,
     create_performance_heatmap,
     create_engagement_boxplot,
-    create_film_timeline_chart
+    create_film_timeline_chart,
+    create_bond_films_rating_chart
 )
 from components import (
     initialize_page_styles,
@@ -56,31 +57,21 @@ def render_dashboard(df_full, df_filtered):
     # ========================================================================
     render_key_metrics(df_filtered)
     
-    # ========================================================================
-    # SECTION 3: ACTOR PERFORMANCE (2-COLUMN)
+    
+     # ========================================================================
+    # SECTION 4: BOND FILMS RATING (FULL WIDTH)
     # ========================================================================
     render_section_header(
-        "Actor Performance Analysis",
-        "Compare critical reception across all Bond actors"
+        "Bond Films Rating",
+        "Visualize the IMDb ratings for James Bond films only"
     )
     
-    render_two_column_charts(
-        left_chart_config={
-            'title': 'Actor Performance Ranking',
-            'description': 'Ranks each Bond actor by their average IMDb rating across all films. '
-                          'Higher ratings indicate stronger critical reception.',
-            'key_insight': 'Which actor has the highest critical reception? Notice correlations between film count and ratings.',
-            'chart': create_actor_performance_chart(df_filtered),
-            'interaction_tip': 'Hover to see film counts'
-        },
-        right_chart_config={
-            'title': 'Rating Distribution by Actor',
-            'description': 'Visualizes the spread of ratings for each actor\'s films. '
-                          'The red line shows the average rating.',
-            'key_insight': 'Which actors have the most consistent ratings? Are there outliers?',
-            'chart': create_rating_distribution_chart(df_filtered),
-            'interaction_tip': 'Hover for film titles'
-        }
+    render_chart_with_description(
+        title='Bond Films Rating',
+        description='Visualize the IMDb ratings for James Bond films only, color-coded by the actor who played Bond in each film.',
+        key_insight='Which Bond actor had the highest-rated films? Are there patterns in ratings across different Bond eras?',
+        chart_element=create_bond_films_rating_chart(df_full),
+        interaction_tip='Hover for film titles and details'
     )
     
     st.markdown("---")
@@ -88,21 +79,21 @@ def render_dashboard(df_full, df_filtered):
     # ========================================================================
     # SECTION 4: RATING TRENDS (FULL WIDTH)
     # ========================================================================
-    render_section_header(
-        "Rating Trends Over Time",
-        "Track how IMDb ratings have evolved across decades"
-    )
+    # render_section_header(
+    #     "Rating Trends Over Time",
+    #     "Track how IMDb ratings have evolved across decades"
+    # )
     
-    render_chart_with_description(
-        title='Rating Evolution Analysis',
-        description='Track how IMDb ratings for Bond films have evolved across decades and individual actors. '
-                   'Use the legend to toggle actors on/off, revealing trends across different eras.',
-        key_insight='Is there a consistent trend in film quality over decades? How do actor eras compare?',
-        chart_element=create_rating_trend_chart(df_filtered),
-        interaction_tip='Click legend items to filter actors'
-    )
+    # render_chart_with_description(
+    #     title='Rating Evolution Analysis',
+    #     description='Track how IMDb ratings for Bond films have evolved across decades and individual actors. '
+    #                'Use the legend to toggle actors on/off, revealing trends across different eras.',
+    #     key_insight='Is there a consistent trend in film quality over decades? How do actor eras compare?',
+    #     chart_element=create_rating_trend_chart(df_filtered),
+    #     interaction_tip='Click legend items to filter actors'
+    # )
     
-    st.markdown("---")
+    # st.markdown("---")
     
     # ========================================================================
     # SECTION 5: BOND VS COMPETITION (FULL WIDTH)
@@ -182,32 +173,61 @@ def render_dashboard(df_full, df_filtered):
     # ========================================================================
     # SECTION 7: GENRE ANALYSIS (2-COLUMN)
     # ========================================================================
+    # render_section_header(
+    #     "Genre Evolution & Trends",
+    #     "How have genres shifted across Bond film eras?"
+    # )
+    
+    # render_two_column_charts(
+    #     left_chart_config={
+    #         'title': 'Genre Evolution by Decade',
+    #         'description': 'Track which genres appear in Bond films across different decades. '
+    #                       'Shows the count of films in each genre per decade.',
+    #         'key_insight': 'Which genres are most common? How has genre diversity changed over time?',
+    #         'chart': create_genre_evolution_chart(df_filtered),
+    #         'interaction_tip': 'Hover for genre breakdown'
+    #     },
+    #     right_chart_config={
+    #         'title': 'Genre Popularity Trend',
+    #         'description': 'Stacked area chart showing genre distribution across decades. '
+    #                       'Each colored area represents a genre over time.',
+    #         'key_insight': 'Is Action still dominant? How have Romance and Sci-Fi evolved?',
+    #         'chart': create_genre_trend_chart(df_filtered) or st.info("Not enough data"),
+    #         'interaction_tip': 'Hover for detailed breakdown'
+    #     }
+    # )
+    
+    # st.markdown("---")
+    
+    # ========================================================================
+    # SECTION 3: ACTOR PERFORMANCE (2-COLUMN)
+    # ========================================================================
     render_section_header(
-        "Genre Evolution & Trends",
-        "How have genres shifted across Bond film eras?"
+        "Actor Performance Analysis: Who's the best James Bond?",
+        "Compare critical reception across all Bond actors"
     )
     
     render_two_column_charts(
         left_chart_config={
-            'title': 'Genre Evolution by Decade',
-            'description': 'Track which genres appear in Bond films across different decades. '
-                          'Shows the count of films in each genre per decade.',
-            'key_insight': 'Which genres are most common? How has genre diversity changed over time?',
-            'chart': create_genre_evolution_chart(df_filtered),
-            'interaction_tip': 'Hover for genre breakdown'
+            'title': 'Actor Performance Ranking',
+            'description': 'Ranks each Bond actor by their average IMDb rating across all films. '
+                          'Higher ratings indicate stronger critical reception.',
+            'key_insight': 'Which actor has the highest critical reception? Notice correlations between film count and ratings.',
+            'chart': create_actor_performance_chart(df_filtered),
+            'interaction_tip': 'Hover to see film counts'
         },
         right_chart_config={
-            'title': 'Genre Popularity Trend',
-            'description': 'Stacked area chart showing genre distribution across decades. '
-                          'Each colored area represents a genre over time.',
-            'key_insight': 'Is Action still dominant? How have Romance and Sci-Fi evolved?',
-            'chart': create_genre_trend_chart(df_filtered) or st.info("Not enough data"),
-            'interaction_tip': 'Hover for detailed breakdown'
+            'title': 'Rating Distribution by Actor',
+            'description': 'Visualizes the spread of ratings for each actor\'s films. '
+                          'The red line shows the average rating.',
+            'key_insight': 'Which actors have the most consistent ratings? Are there outliers?',
+            'chart': create_rating_distribution_chart(df_filtered),
+            'interaction_tip': 'Hover for film titles'
         }
     )
     
     st.markdown("---")
-    
+
     # ========================================================================
     # SECTION 8: ADVANCED ANALYTICS (COLLAPSIBLE)
     # ========================================================================

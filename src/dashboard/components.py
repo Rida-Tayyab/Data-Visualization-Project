@@ -7,6 +7,7 @@ import streamlit as st
 
 try:
     from .config import EON_BOND_ACTORS
+    from .charts import filter_to_specific_bond_films
     from .design_system import (
         inject_global_styles,
         get_section_header_style,
@@ -18,6 +19,7 @@ try:
     )
 except ImportError:
     from config import EON_BOND_ACTORS
+    from charts import filter_to_specific_bond_films
     from design_system import (
         inject_global_styles,
         get_section_header_style,
@@ -254,6 +256,7 @@ def render_key_metrics(df_filtered):
     """
     Render the key metrics section - USED IN OVERVIEW PAGE.
     Now uses consistent metric cards.
+    Only considers the specific 14 Bond films.
     """
     st.markdown("""
     <style>
@@ -283,10 +286,17 @@ def render_key_metrics(df_filtered):
     
     render_section_header("Executive Metrics")
     
-    total_films = len(df_filtered)
-    avg_rating = df_filtered['averageRating'].mean() if total_films > 0 else 0
-    avg_runtime = df_filtered['runtimeMinutes'].mean() if total_films > 0 else 0
-    best_film = df_filtered.loc[df_filtered['averageRating'].idxmax()] if total_films > 0 else {
+    # Filter to only specific Bond films
+    df_bond_films = filter_to_specific_bond_films(df_filtered)
+    
+    if df_bond_films.empty:
+        st.warning("No specific Bond films found in the filtered data.")
+        return
+    
+    total_films = len(df_bond_films)
+    avg_rating = df_bond_films['averageRating'].mean() if total_films > 0 else 0
+    avg_runtime = df_bond_films['runtimeMinutes'].mean() if total_films > 0 else 0
+    best_film = df_bond_films.loc[df_bond_films['averageRating'].idxmax()] if total_films > 0 else {
         'primaryTitle': 'N/A',
         'averageRating': 0
     }
@@ -323,27 +333,28 @@ def render_sidebar_filters(df_full):
     Render sidebar filters and return filtered data.
     Enhanced with better organization and icons.
     """
-    st.sidebar.markdown("### Mission Parameters")
+    # st.sidebar.markdown("### Mission Parameters")
 
-    # 1. Data Focus Selection
-    data_focus = st.sidebar.radio(
-        "Select Data Focus:",
-        ('James Bond Core Films (EON Actors & 007 Titles)', 'General Actor Search (Full Dataset)'),
-        index=0
-    )
+    # # 1. Data Focus Selection
+    # data_focus = st.sidebar.radio(
+    #     "Select Data Focus:",
+    #     ('James Bond Core Films (EON Actors & 007 Titles)', 'General Actor Search (Full Dataset)'),
+    #     index=0
+    # )
 
-    # Apply Focus Filter
-    if data_focus == 'James Bond Core Films (EON Actors & 007 Titles)':
-        df_current = df_full[df_full['is_bond_core']].copy()
-        actor_list_options = sorted(list(set(EON_BOND_ACTORS).intersection(df_current['leadActor'].unique())))
-        default_actors = EON_BOND_ACTORS
-    else:
-        df_current = df_full.copy()
-        top_actors = df_current.groupby('leadActor').filter(
-            lambda x: len(x) >= 5 and x['numVotes'].sum() >= 1000
-        )
-        actor_list_options = sorted(top_actors['leadActor'].unique().tolist())
-        default_actors = EON_BOND_ACTORS
+    # Apply Focus Filter (defaulting to first option)
+    # if data_focus == 'James Bond Core Films (EON Actors & 007 Titles)':
+    data_focus = 'James Bond Core Films (EON Actors & 007 Titles)'  # Default value
+    df_current = df_full[df_full['is_bond_core']].copy()
+    actor_list_options = sorted(list(set(EON_BOND_ACTORS).intersection(df_current['leadActor'].unique())))
+    default_actors = EON_BOND_ACTORS
+    # else:
+    #     df_current = df_full.copy()
+    #     top_actors = df_current.groupby('leadActor').filter(
+    #         lambda x: len(x) >= 5 and x['numVotes'].sum() >= 1000
+    #     )
+    #     actor_list_options = sorted(top_actors['leadActor'].unique().tolist())
+    #     default_actors = EON_BOND_ACTORS
 
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Actor Dossier")

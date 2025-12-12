@@ -14,8 +14,6 @@ GRID_COLOR = '#2C2C2C'
 
 # Define the set of Canonical Eon Bond Actors
 EON_BOND_ACTORS = [
-    'Sean Connery', 
-    'George Lazenby', 
     'Roger Moore', 
     'Timothy Dalton', 
     'Pierce Brosnan', 

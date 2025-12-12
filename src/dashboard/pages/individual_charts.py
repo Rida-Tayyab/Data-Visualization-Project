@@ -9,6 +9,7 @@ try:
         create_actor_performance_chart,
         create_rating_trend_chart,
         create_bond_comparison_chart,
+        create_bond_films_rating_chart,
         create_runtime_rating_chart,
         create_genre_evolution_chart,
         create_genre_trend_chart,
@@ -24,6 +25,7 @@ except ImportError:
         create_actor_performance_chart,
         create_rating_trend_chart,
         create_bond_comparison_chart,
+        create_bond_films_rating_chart,
         create_runtime_rating_chart,
         create_genre_evolution_chart,
         create_genre_trend_chart,
@@ -52,7 +54,11 @@ def render_individual_chart(df_full, chart_name):
         st.altair_chart(create_actor_performance_chart(df_filtered), use_container_width=True)
     
     elif chart_name == "Rating Trend Over Time":
-        st.altair_chart(create_rating_trend_chart(df_filtered), use_container_width=True)
+        chart = create_bond_films_rating_chart(df_full)
+        if chart:
+            st.altair_chart(chart, use_container_width=True)
+        else:
+            st.info("No Bond films found in the dataset")
     
     elif chart_name == "Bond vs Other Thriller Films":
         st.markdown("#### James Bond Movies vs Other Thriller Films")
@@ -78,15 +84,15 @@ def render_individual_chart(df_full, chart_name):
     elif chart_name == "Runtime vs Rating Analysis":
         st.altair_chart(create_runtime_rating_chart(df_filtered), use_container_width=True)
     
-    elif chart_name == "Genre Evolution by Decade":
-        st.altair_chart(create_genre_evolution_chart(df_filtered), use_container_width=True)
+    # elif chart_name == "Genre Evolution by Decade":
+    #     st.altair_chart(create_genre_evolution_chart(df_filtered), use_container_width=True)
     
-    elif chart_name == "Genre Popularity Trend":
-        chart = create_genre_trend_chart(df_filtered)
-        if chart:
-            st.altair_chart(chart, use_container_width=True)
-        else:
-            st.info("Not enough data to show genre trends")
+    # elif chart_name == "Genre Popularity Trend":
+    #     chart = create_genre_trend_chart(df_filtered)
+    #     if chart:
+    #         st.altair_chart(chart, use_container_width=True)
+    #     else:
+    #         st.info("Not enough data to show genre trends")
     
     elif chart_name == "Rating Distribution by Actor":
         st.altair_chart(create_rating_distribution_chart(df_filtered), use_container_width=True)

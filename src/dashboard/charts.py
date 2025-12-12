@@ -15,6 +15,47 @@ except ImportError:
     )
 
 
+def filter_to_specific_bond_films(df):
+    """Filter dataframe to only include the specific 14 Bond films."""
+    # Define the specific Bond films to include (year and title keywords for matching)
+    target_films = [
+        (1981, 'for your eyes only', 'Roger Moore'),
+        (1983, 'octopussy', 'Roger Moore'),
+        (1985, 'view to a kill', 'Roger Moore'),
+        (1987, 'living daylights', 'Timothy Dalton'),
+        (1989, 'licence to kill', 'Timothy Dalton'),
+        (1995, 'goldeneye', 'Pierce Brosnan'),
+        (1997, 'tomorrow never dies', 'Pierce Brosnan'),
+        (1999, 'world is not enough', 'Pierce Brosnan'),
+        (2002, 'die another day', 'Pierce Brosnan'),
+        (2006, 'casino royale', 'Daniel Craig'),
+        (2008, 'quantum of solace', 'Daniel Craig'),
+        (2012, 'skyfall', 'Daniel Craig'),
+        (2015, 'spectre', 'Daniel Craig'),
+        (2021, 'no time to die', 'Daniel Craig')
+    ]
+    
+    # Filter to only the specific films
+    filtered_films = []
+    for year, title_keywords, actor in target_films:
+        # Match by year and title keywords (case-insensitive)
+        matches = df[
+            (df['releaseYear'] == year) &
+            (df['primaryTitle'].str.lower().str.contains(title_keywords, case=False, na=False))
+        ]
+        if not matches.empty:
+            # If multiple matches, prefer the one with matching actor if available
+            if actor in matches['leadActor'].values:
+                matches = matches[matches['leadActor'] == actor]
+            filtered_films.append(matches.iloc[0])
+    
+    if not filtered_films:
+        return pd.DataFrame()
+    
+    # Convert to DataFrame
+    return pd.DataFrame(filtered_films)
+
+
 def create_actor_performance_chart(df_filtered):
     """Create actor performance ranking bar chart."""
     actor_ratings = df_filtered.groupby('leadActor').agg(
@@ -58,15 +99,150 @@ def create_rating_trend_chart(df_filtered):
     return line_chart
 
 
-def create_bond_comparison_chart(df_full):
-    """Create Bond vs Other Thriller Films comparison chart."""
-    df_comparison = df_full[df_full['Thriller'] == 1].copy()
-    df_comparison['film_type'] = df_comparison['is_bond_core'].apply(
-        lambda x: 'James Bond Films' if x else 'Other Thriller Films'
+def create_bond_films_rating_chart(df_full):
+    """Create chart showing IMDb ratings for specific James Bond films only, color-coded by actor."""
+    # Define the specific Bond films to include (year and title keywords for matching)
+    target_films = [
+        (1981, 'for your eyes only', 'Roger Moore'),
+        (1983, 'octopussy', 'Roger Moore'),
+        (1985, 'view to a kill', 'Roger Moore'),
+        (1987, 'living daylights', 'Timothy Dalton'),
+        (1989, 'licence to kill', 'Timothy Dalton'),
+        (1995, 'goldeneye', 'Pierce Brosnan'),
+        (1997, 'tomorrow never dies', 'Pierce Brosnan'),
+        (1999, 'world is not enough', 'Pierce Brosnan'),
+        (2002, 'die another day', 'Pierce Brosnan'),
+        (2006, 'casino royale', 'Daniel Craig'),
+        (2008, 'quantum of solace', 'Daniel Craig'),
+        (2012, 'skyfall', 'Daniel Craig'),
+        (2015, 'spectre', 'Daniel Craig'),
+        (2021, 'no time to die', 'Daniel Craig')
+    ]
+    
+    # Filter to only James Bond films first
+    bond_films = df_full[df_full['is_bond_core'] == True].copy()
+    
+    if bond_films.empty:
+        return None
+    
+    # Filter to only the specific films
+    filtered_films = []
+    for year, title_keywords, actor in target_films:
+        # Match by year and title keywords (case-insensitive)
+        matches = bond_films[
+            (bond_films['releaseYear'] == year) &
+            (bond_films['primaryTitle'].str.lower().str.contains(title_keywords, case=False, na=False))
+        ]
+        if not matches.empty:
+            # If multiple matches, prefer the one with matching actor if available
+            if actor in matches['leadActor'].values:
+                matches = matches[matches['leadActor'] == actor]
+            filtered_films.append(matches.iloc[0])
+    
+    if not filtered_films:
+        return None
+    
+    # Convert to DataFrame
+    bond_films = pd.DataFrame(filtered_films)
+    
+    # Sort by release year to ensure chronological order
+    bond_films = bond_films.sort_values('releaseYear').reset_index(drop=True)
+    
+    # Create titles with year for x-axis labels (use full title, not abbreviated)
+    bond_films['title_short'] = bond_films['primaryTitle'] + ' (' + bond_films['releaseYear'].astype(str) + ')'
+    
+    # Calculate average rating for the average line
+    avg_rating = bond_films['averageRating'].mean()
+    
+    # Add actor selection (same as create_rating_trend_chart)
+    actor_selection = alt.selection_point(fields=['leadActor'], bind='legend')
+    
+    # Main chart with points (removed white stroke)
+    point_chart = alt.Chart(bond_films).mark_point(filled=True, size=120).encode(
+        x=alt.X(
+            'title_short:N',
+            title="James Bond Films",
+            sort=alt.SortField('releaseYear', order='ascending'),
+            axis=alt.Axis(labelAngle=-45, labelLimit=0, labelOverlap=False)
+        ),
+        y=alt.Y('averageRating:Q', title="IMDb Rating", scale=alt.Scale(domain=[5, 10])),
+        color=alt.Color('leadActor:N', title="Bond Actor", legend=alt.Legend(title="Actor")),
+        opacity=alt.condition(actor_selection, alt.value(0.9), alt.value(0.2)),
+        tooltip=[
+            alt.Tooltip('primaryTitle:N', title="Film"),
+            alt.Tooltip('releaseYear:O', title="Year"),
+            alt.Tooltip('averageRating:Q', title="Rating", format=".2f"),
+            alt.Tooltip('leadActor:N', title="Actor"),
+            alt.Tooltip('numVotes:Q', title="Votes", format=",")
+        ]
+    ).add_params(actor_selection).properties(
+        height=400,
+        width=1200
     )
     
-    bond_films_data = df_comparison[df_comparison['film_type'] == 'James Bond Films']
-    other_films_data = df_comparison[df_comparison['film_type'] == 'Other Thriller Films']
+    # Add average line (same color as trend line in create_rating_trend_chart)
+    avg_line = alt.Chart(pd.DataFrame({'avg_rating': [avg_rating]})).mark_rule(
+        color=ACCENT_RED,
+        size=2,
+        strokeDash=[5, 5]
+    ).encode(
+        y=alt.Y('avg_rating:Q', title="IMDb Rating")
+    )
+    
+    # Combine point chart with average line
+    chart = point_chart + avg_line
+    
+    return chart
+
+
+def create_bond_comparison_chart(df_full):
+    """Create Bond vs Other Thriller Films comparison chart."""
+    # Define the specific Bond films to include (year and title keywords for matching)
+    target_films = [
+        (1981, 'for your eyes only', 'Roger Moore'),
+        (1983, 'octopussy', 'Roger Moore'),
+        (1985, 'view to a kill', 'Roger Moore'),
+        (1987, 'living daylights', 'Timothy Dalton'),
+        (1989, 'licence to kill', 'Timothy Dalton'),
+        (1995, 'goldeneye', 'Pierce Brosnan'),
+        (1997, 'tomorrow never dies', 'Pierce Brosnan'),
+        (1999, 'world is not enough', 'Pierce Brosnan'),
+        (2002, 'die another day', 'Pierce Brosnan'),
+        (2006, 'casino royale', 'Daniel Craig'),
+        (2008, 'quantum of solace', 'Daniel Craig'),
+        (2012, 'skyfall', 'Daniel Craig'),
+        (2015, 'spectre', 'Daniel Craig'),
+        (2021, 'no time to die', 'Daniel Craig')
+    ]
+    
+    df_comparison = df_full[df_full['Thriller'] == 1].copy()
+    
+    # Filter to only the specific Bond films and track their indices
+    bond_films_list = []
+    bond_indices = set()
+    
+    for year, title_keywords, actor in target_films:
+        # Match by year and title keywords (case-insensitive)
+        matches = df_comparison[
+            (df_comparison['releaseYear'] == year) &
+            (df_comparison['primaryTitle'].str.lower().str.contains(title_keywords, case=False, na=False))
+        ]
+        if not matches.empty:
+            # If multiple matches, prefer the one with matching actor if available
+            if actor in matches['leadActor'].values:
+                matches = matches[matches['leadActor'] == actor]
+            selected_match = matches.iloc[0]
+            bond_films_list.append(selected_match)
+            bond_indices.add(selected_match.name)  # Track the original index
+    
+    # Create bond_films_data DataFrame
+    if bond_films_list:
+        bond_films_data = pd.DataFrame(bond_films_list)
+    else:
+        bond_films_data = pd.DataFrame()
+    
+    # All other thriller films (excluding the specific Bond films)
+    other_films_data = df_comparison[~df_comparison.index.isin(bond_indices)].copy()
     
     # Other thriller films scatter
     other_scatter = alt.Chart(other_films_data).mark_circle(size=60, opacity=0.4, color='#9CA3AF').encode(
@@ -117,10 +293,24 @@ def create_bond_comparison_chart(df_full):
 
 def create_runtime_rating_chart(df_filtered):
     """Create runtime vs rating scatter chart."""
-    chart = alt.Chart(df_filtered).mark_circle().encode(
+    # Filter to only specific Bond films
+    df_filtered = filter_to_specific_bond_films(df_filtered)
+    
+    if df_filtered.empty:
+        return None
+    
+    chart = alt.Chart(df_filtered).mark_circle(stroke='white', strokeWidth=1).encode(
         x=alt.X('runtimeMinutes:Q', title="Runtime (Minutes)"),
         y=alt.Y('averageRating:Q', title="IMDb Rating", scale=alt.Scale(domain=[5, 10])),
-        size=alt.Size('numVotes:Q', title="Popularity", scale=alt.Scale(range=[50, 800])),
+        size=alt.Size('numVotes:Q', 
+                     title="Popularity",
+                     scale=alt.Scale(range=[50, 800]),
+                     legend=alt.Legend(title="Popularity (Number of Votes)", 
+                                      format=",",
+                                      labelFontSize=11,
+                                      symbolFillColor='white',
+                                      symbolStrokeColor='white',
+                                      symbolStrokeWidth=1)),
         color=alt.Color('leadActor:N', title="Actor"),
         tooltip=[
             'primaryTitle', 'leadActor',
@@ -135,6 +325,12 @@ def create_runtime_rating_chart(df_filtered):
 
 def create_genre_evolution_chart(df_filtered):
     """Create genre evolution by decade chart."""
+    # Filter to only specific Bond films
+    df_filtered = filter_to_specific_bond_films(df_filtered)
+    
+    if df_filtered.empty:
+        return None
+    
     genre_cols = ['Action', 'Adventure', 'Thriller', 'Romance', 'Sci-Fi', 'Comedy', 'Drama']
     df_genres = df_filtered.groupby('decade')[genre_cols].sum().reset_index()
     df_genres_melted = df_genres.melt('decade', value_vars=genre_cols, var_name='Genre', value_name='Count')
@@ -153,6 +349,12 @@ def create_genre_evolution_chart(df_filtered):
 
 def create_genre_trend_chart(df_filtered):
     """Create genre popularity trend area chart."""
+    # Filter to only specific Bond films
+    df_filtered = filter_to_specific_bond_films(df_filtered)
+    
+    if df_filtered.empty:
+        return None
+    
     genre_cols = ['Action', 'Adventure', 'Thriller', 'Romance', 'Sci-Fi', 'Comedy', 'Drama']
     df_genres = df_filtered.groupby('decade')[genre_cols].sum().reset_index()
     df_genres_melted = df_genres.melt('decade', value_vars=genre_cols, var_name='Genre', value_name='Count')
@@ -194,6 +396,12 @@ def create_rating_distribution_chart(df_filtered):
 
 def create_production_volume_chart(df_filtered):
     """Create production volume by decade chart."""
+    # Filter to only specific Bond films
+    df_filtered = filter_to_specific_bond_films(df_filtered)
+    
+    if df_filtered.empty:
+        return None
+    
     decade_data = df_filtered.groupby('decade').size().reset_index(name='count')
     
     chart = alt.Chart(decade_data).mark_bar().encode(
@@ -257,7 +465,7 @@ def create_film_timeline_chart(df_filtered):
         labels=['Below 6', '6-7', '7-8', '8+']
     )
     
-    chart = alt.Chart(df_timeline).mark_circle(size=100).encode(
+    chart = alt.Chart(df_timeline).mark_circle(size=100, stroke='white', strokeWidth=1).encode(
         x=alt.X('releaseYear:O', title="Release Year"),
         y=alt.Y('leadActor:N', title="Actor"),
         color=alt.Color('rating_band:N',
@@ -267,7 +475,15 @@ def create_film_timeline_chart(df_filtered):
             ),
             title="Rating Band"
         ),
-        size=alt.Size('numVotes:Q', scale=alt.Scale(range=[50, 500]), title="Popularity"),
+        size=alt.Size('numVotes:Q', 
+                     scale=alt.Scale(range=[50, 500]), 
+                     title="Popularity",
+                     legend=alt.Legend(title="Popularity (Number of Votes)",
+                                      format=",",
+                                      labelFontSize=11,
+                                      symbolFillColor='white',
+                                      symbolStrokeColor='white',
+                                      symbolStrokeWidth=1)),
         tooltip=[
             'primaryTitle', 'leadActor', 'releaseYear',
             alt.Tooltip('averageRating:Q', format='.2f'),

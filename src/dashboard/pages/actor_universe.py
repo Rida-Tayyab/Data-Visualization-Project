@@ -12,6 +12,7 @@ try:
         render_section_header,
         render_insight_row
     )
+    from ..charts import filter_to_specific_bond_films
 except ImportError:
     from config import ACCENT_GOLD, ACCENT_ORANGE, ACCENT_BLUE, ACCENT_RED
     from components import (
@@ -20,6 +21,7 @@ except ImportError:
         render_section_header,
         render_insight_row
     )
+    from charts import filter_to_specific_bond_films
 
 
 def render_actor_universe(df_full, EON_BOND_ACTORS):
@@ -33,8 +35,8 @@ def render_actor_universe(df_full, EON_BOND_ACTORS):
     )
     
     st.markdown("""
-    Fans often debate over who's the best **James Bond** — Daniel Craig, George Lazenby, 
-    Pierce Brosnan, Roger Moore, Sean Connery, or Timothy Dalton.  
+    Fans often debate over who's the best **James Bond** — Daniel Craig, 
+    Pierce Brosnan, Roger Moore, or Timothy Dalton.  
     Within this data story, you have the opportunity to compare their works, performance, and legacy.
     """)
 
@@ -50,7 +52,7 @@ def render_actor_universe(df_full, EON_BOND_ACTORS):
         selected_actor = st.selectbox(
             "Choose a Bond actor:",
             EON_BOND_ACTORS,
-            index=5,
+            index=3,  # Default to Daniel Craig (last in list)
             label_visibility="collapsed"
         )
 
@@ -60,14 +62,26 @@ def render_actor_universe(df_full, EON_BOND_ACTORS):
         st.warning(f"No films found for {selected_actor}.")
         return
 
+    # Get the specific Bond films for this actor
+    df_specific_bond_films = filter_to_specific_bond_films(df_full)
+    bond_film_titles = set(df_specific_bond_films[df_specific_bond_films['leadActor'] == selected_actor]['primaryTitle'].values)
+    
+    # Identify Bond films vs other films for this actor
+    df_actor['is_specific_bond'] = df_actor['primaryTitle'].isin(bond_film_titles)
+    
     st.markdown("---")
 
     # ========================================================================
     # QUICK STATS
     # ========================================================================
-    bond_count = df_actor[df_actor['is_bond_core']].shape[0]
-    other_count = df_actor[~df_actor['is_bond_core']].shape[0]
+    bond_count = df_actor[df_actor['is_specific_bond']].shape[0]
+    other_count = df_actor[~df_actor['is_specific_bond']].shape[0]
+    
+    # Calculate average rating for Bond films and other films separately
+    bond_avg_rating = df_actor[df_actor['is_specific_bond']]['averageRating'].mean() if bond_count > 0 else 0
+    other_avg_rating = df_actor[~df_actor['is_specific_bond']]['averageRating'].mean() if other_count > 0 else 0
     avg_rating = df_actor['averageRating'].mean()
+    
     best_film = df_actor.loc[df_actor['averageRating'].idxmax()]
     worst_film = df_actor.loc[df_actor['averageRating'].idxmin()]
 
@@ -117,12 +131,10 @@ def render_actor_universe(df_full, EON_BOND_ACTORS):
     ).encode(text='text:N')
     
     final_chart = alt.layer(donut_chart, center_text).properties(
-        height=400, width=400, title=f"Genre Distribution in {selected_actor}'s Filmography"
+        height=400, title=f"Genre Distribution in {selected_actor}'s Filmography"
     ).configure_view(strokeWidth=0)
 
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.altair_chart(final_chart, use_container_width=False)
+    st.altair_chart(final_chart, use_container_width=True)
 
     st.markdown("---")
 
@@ -134,7 +146,7 @@ def render_actor_universe(df_full, EON_BOND_ACTORS):
     avg_actor_rating = df_actor['averageRating'].mean()
     
     df_actor_viz = df_actor.copy()
-    df_actor_viz['film_type'] = df_actor_viz['is_bond_core'].apply(
+    df_actor_viz['film_type'] = df_actor_viz['is_specific_bond'].apply(
         lambda x: 'James Bond Films' if x else 'Other Films'
     )
     
